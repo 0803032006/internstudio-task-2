@@ -1,0 +1,170 @@
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import random
+import re
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.svm import SVC
+from sklearn.metrics import classification_report, confusion_matrix
+from wordcloud import WordCloud
+
+# Download stopwords
+nltk.download('stopwords')
+stop_words = set(stopwords.words('english'))
+stemmer = PorterStemmer()
+# Step 1: Load and preprocess the dataset
+# -------------------------
+df = pd.read_csv("/content/final intern task.csv")
+df.columns = ['user_id', 'product_id', 'rating', 'timestamp']
+# Convert timestamp
+df['date'] = pd.to_datetime(df['timestamp'], unit='s')
+# Convert rating to sentiment
+def convert_rating_to_sentiment(r):
+    if r <= 2:
+        return 'negative'
+    elif r == 3:
+        return 'neutral'
+    else:
+        return 'positive'
+
+df['sentiment'] = df['rating'].apply(convert_rating_to_sentiment)
+# Step 2: Generate synthetic review texts (for demonstration)
+# -------------------------
+positive_texts = ["Great product!", "Excellent quality!", "Loved it!", "Highly recommend!", "Perfect!"]
+neutral_texts = ["It's okay.", "Average item.", "Nothing special.", "Neutral experience.", "So-so."]
+negative_texts = ["Terrible!", "Horrible quality.", "Broke fast.", "Very disappointed.", "Not worth it."]
+
+def generate_review(sentiment):
+    if sentiment == 'positive':
+        return random.choice(positive_texts)
+    elif sentiment == 'neutral':
+        return random.choice(neutral_texts)
+    else:
+        return random.choice(negative_texts)
+
+df['review'] = df['sentiment'].apply(generate_review)
+# Step 3: Text Preprocessing
+# -------------------------
+def clean_text(text):
+    text = re.sub(r'[^\w\s]', '', text.lower())  # remove punctuation and lowercase
+    words = text.split()
+    words = [stemmer.stem(w) for w in words if w not in stop_words]
+    return ' '.join(words)
+
+df['clean_review'] = df['review'].apply(clean_text)
+# Step 4: Visualizations
+# -------------------------
+# Sentiment distribution
+plt.figure(figsize=(6,4))
+sns.countplot(data=df, x='sentiment', palette='Set2')
+plt.title("Sentiment Distribution")
+plt.show()
+
+# Word Clouds
+for sentiment in ['positive', 'neutral', 'negative']:
+    text = ' '.join(df[df['sentiment'] == sentiment]['clean_review'])
+    wc = WordCloud(width=600, height=400, background_color='white').generate(text)
+    plt.imshow(wc, interpolation='bilinear')
+    plt.axis('off')
+    plt.title(f"{sentiment.capitalize()} Word Cloud")
+    plt.show()
+    # Step 5: Machine Learning Models
+# -------------------------
+X = df['clean_review']
+y = df['sentiment']
+# Vectorization
+vectorizer = TfidfVectorizer()
+X_vec = vectorizer.fit_transform(X)
+# ----- Naive Bayes -----
+nb_model = MultinomialNB()
+nb_model.fit(X_train, y_train)
+nb_preds = nb_model.predict(X_test)
+
+print("Naive Bayes Classification Report:")
+print(classification_report(y_test, nb_preds))
+# ----- Support Vector Machine (SVM) -----
+svm_model = SVC(kernel='linear')
+svm_model.fit(X_train, y_train)
+svm_preds = svm_model.predict(X_test)
+
+print("SVM Classification Report:")
+print(classification_report(y_test, svm_preds))
+import numpy as np
+import pandas as pd
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, LSTM, Dense, Dropout
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import classification_report
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
+import re
+
+# Preprocessing steps
+nltk.download('stopwords')
+stop_words = set(stopwords.words('english'))
+stemmer = PorterStemmer()
+
+def clean_text(text):
+    text = re.sub(r'[^\w\s]', '', text.lower())
+    words = text.split()
+    words = [stemmer.stem(w) for w in words if w not in stop_words]
+    return ' '.join(words)
+
+# Load your dataset
+df = pd.read_csv("/content/final intern task.csv")
+df.columns = ['user_id', 'product_id', 'rating', 'timestamp']
+df['sentiment'] = df['rating'].apply(lambda x: 'positive' if x > 3 else ('negative' if x < 3 else 'neutral'))
+
+# Generate synthetic reviews (since text is missing)
+df['review'] = df['sentiment'].apply(lambda s: {
+    'positive': "Excellent product, works perfectly!",
+    'neutral': "It's okay, nothing special.",
+    'negative': "Terrible quality, very disappointed."
+}[s])
+df['clean_review'] = df['review'].apply(clean_text)
+
+# Tokenization
+tokenizer = Tokenizer(num_words=5000, oov_token='<OOV>')
+tokenizer.fit_on_texts(df['clean_review'])
+sequences = tokenizer.texts_to_sequences(df['clean_review'])
+padded_sequences = pad_sequences(sequences, maxlen=50, padding='post')
+
+# Encode labels
+label_encoder = LabelEncoder()
+labels = label_encoder.fit_transform(df['sentiment'])
+
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(padded_sequences, labels, test_size=0.2, random_state=42)
+
+# LSTM Model
+model = Sequential([
+    Embedding(input_dim=5000, output_dim=64, input_length=50),
+    LSTM(64, return_sequences=False),
+    Dropout(0.5),
+    Dense(3, activation='softmax')
+])
+model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+model.summary()
+
+# Train the model
+model.fit(X_train, y_train, epochs=5, batch_size=32, validation_split=0.1)
+
+# Evaluate
+y_pred = model.predict(X_test)
+y_pred_labels = np.argmax(y_pred, axis=1)
+
+# Classification report
+print(classification_report(y_test, y_pred_labels, target_names=label_encoder.classes_))
+
+
